@@ -24,19 +24,45 @@ type List = {
 // COMONENT 
 export const Home = () => {
 
+
     // App Data 
-    const [listArray, setListArray] = useState<List[]>([
-        {
-            id: "123456789",
-            name: "All",
-            tasks: []
+    const [listArray, setListArray] = useState(() => {
+        const savedData = localStorage.getItem('savedData');
+        if (savedData) {
+            const parsedData = JSON.parse(savedData);
+
+            // Convert string dates back to Date objects
+            return parsedData.map((list: List) => ({
+                ...list,
+                tasks: list.tasks.map(task => ({
+                    ...task,
+                    createdAt: new Date(task.createdAt),
+                })),
+            }));
         }
-    ])
+
+        // Default state
+        return [
+            {
+                id: "123456789",
+                name: "All",
+                tasks: []
+            }
+        ];
+    });
+
+
+
     const [viewingListID, setViewingListID] = useState('123456789')
 
-    // CLIENT VIEW 
+    // On Mount.  If "data" is true then parse it and setLists to Data.
+    useEffect(() => {
+
+        const stringyListArray = JSON.stringify(listArray)
+        localStorage.setItem("savedData", stringyListArray)
 
 
+    }, [listArray])
 
 
 
@@ -62,7 +88,7 @@ export const Home = () => {
             name: newListName,
             tasks: []
         }
-        setListArray((prev) => [...prev, newList])
+        setListArray((prev:List[]) => [...prev, newList])
         setIsNavShowing(false)
         setViewingListID(newList.id)
         setNewListName('')
@@ -75,7 +101,7 @@ export const Home = () => {
         setUpdatedListName(e.target.value)
     }
     const updateListNameFun = () => {
-        setListArray(prevListArray =>
+        setListArray((prevListArray: List[]) =>
             prevListArray.map(list => {
                 if (list.id === viewingListID) {
                     return { ...list, name: updatedListName };  // Update only the name of the list
@@ -83,8 +109,8 @@ export const Home = () => {
                 return list;
             })
         );
-        setIsListNameBeingEdited(false)
-    }
+        setIsListNameBeingEdited(false);
+    };
     const handlClickEditListName = () => {
         setIsListNameBeingEdited(true);
         setUpdatedListName(listArray.find((list: { id: string; }) => list.id === viewingListID)?.name || 'List not found')
@@ -95,14 +121,29 @@ export const Home = () => {
         setIsListBeingDeleted((prev) => !prev)
     }
     const deleteList = () => {
-        setListArray(prevListArray => 
-            prevListArray.filter(list => list.id !== viewingListID)  // Remove the list with viewingListID
-        );
-        
+        setListArray((prevListArray: List[]) => {
+            // Find the list to delete and its tasks
+            const listToDelete = prevListArray.find(list => list.id === viewingListID);
+            if (!listToDelete) return prevListArray; // No list found, return unchanged array
+    
+            // Remove the list with viewingListID
+            const updatedListArray = prevListArray.filter(list => list.id !== viewingListID);
+    
+            // Find the list with ID 123456789
+            const targetList = updatedListArray.find(list => list.id === '123456789');
+            if (listToDelete.tasks.length > 0 && targetList) {
+                // Remove tasks from the target list that are in the deleted list
+                targetList.tasks = targetList.tasks.filter(
+                    task => !listToDelete.tasks.some(deletedTask => deletedTask.id === task.id)
+                );
+            }
+    
+            return updatedListArray;
+        });
+    
         setViewingListID('123456789');  // Set the viewingListID to 123456789
-        
-        setIsListBeingDeleted(false);  // Set the deletion state to false
-    }
+        setIsListBeingDeleted(false);   // Set the deletion state to false
+    };
 
 
 
@@ -124,7 +165,7 @@ export const Home = () => {
             createdAt: new Date(),
         };
         // Update the listArray with the new task for both lists
-        setListArray(prevListArray =>
+        setListArray((prevListArray: List[]) =>
             prevListArray.map(list => {
                 if (list.id === viewingListID || list.id === '123456789') {
                     return { ...list, tasks: [...list.tasks, newTask] };
@@ -135,11 +176,10 @@ export const Home = () => {
         // Clear the input field
         setNewTaskName('');
     }
-
     // Mark Task As Complete 
     const markTaskAsComplete = (taskId: string) => {
         // Create a new listArray with the updated task status
-        const updatedListArray = listArray.map(list => ({
+        const updatedListArray = listArray.map((list: List) => ({
             ...list,
             tasks: list.tasks.map(task =>
                 task.id === taskId
@@ -148,6 +188,33 @@ export const Home = () => {
             ),
         }));
         setListArray(updatedListArray);
+    };
+    const deleteTask = (taskId: string) => {
+        setListArray((prevListArray: List[]) => {
+            // Find the index of the list with viewingListID
+            const updatedListArray = prevListArray.map(list => {
+                if (list.id === viewingListID) {
+                    // Remove the task from this list
+                    return {
+                        ...list,
+                        tasks: list.tasks.filter(task => task.id !== taskId)
+                    };
+                }
+    
+                if (list.id === '123456789') {
+                    // Remove the task from the list with ID '123456789'
+                    return {
+                        ...list,
+                        tasks: list.tasks.filter(task => task.id !== taskId)
+                    };
+                }
+    
+                // Return the list unchanged if it's neither of the target lists
+                return list;
+            });
+    
+            return updatedListArray;
+        });
     };
 
 
@@ -167,11 +234,12 @@ export const Home = () => {
                     />
                 </div>
                 <div className="N2">
-                    <button onClick={addList}>Add List</button>
+                    <button
+                        onClick={addList}>Add List</button>
                 </div>
                 <div className="N3">
 
-                    {listArray.map((list, index) => (
+                    {listArray.map((list: List, index: number) => (
                         <div
                             onClick={() => { setViewingListID(list.id); setIsNavShowing(false) }}
                             key={index}
@@ -352,7 +420,7 @@ export const Home = () => {
 
                 <div className="S3">
 
-                    {listArray.find(list => list.id === viewingListID)?.tasks.map(task => (
+                    {listArray.find((list:List) => list.id === viewingListID)?.tasks.map((task:Task) => (
                         <div key={task.id} className={task.completed ? "Task-Complete" : "Task"}>
                             <div className="Left">
                                 <div className="Name">
@@ -385,9 +453,34 @@ export const Home = () => {
                                 </svg>
 
 
-                                <button>
-                                    del
-                                </button>
+                                <svg
+                                onClick={() => {deleteTask(task.id)}}
+                                    className="Delete-Task-Btn"
+                                    cursor={'pointer'}
+                                    opacity={0.5}
+                                    width="20px"
+                                    height="20px"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg">
+                                    <g
+                                        id="SVGRepo_bgCarrier"
+                                        strokeWidth="0" />
+                                    <g
+                                        id="SVGRepo_tracerCarrier"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round" />
+                                    <g
+                                        id="SVGRepo_iconCarrier">
+                                        <path
+                                            d="M3 3L21 21M18 6L17.6 12M17.2498 17.2527L17.1991 18.0129C17.129 19.065 17.0939 19.5911 16.8667 19.99C16.6666 20.3412 16.3648 20.6235 16.0011 20.7998C15.588 21 15.0607 21 14.0062 21H9.99377C8.93927 21 8.41202 21 7.99889 20.7998C7.63517 20.6235 7.33339 20.3412 7.13332 19.99C6.90607 19.5911 6.871 19.065 6.80086 18.0129L6 6H4M16 6L15.4559 4.36754C15.1837 3.55086 14.4194 3 13.5585 3H10.4416C9.94243 3 9.47576 3.18519 9.11865 3.5M11.6133 6H20M14 14V17M10 10V17"
+                                            stroke="#994517"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round" /> </g>
+                                </svg>
+
+
                             </div>
                         </div>
                     ))}

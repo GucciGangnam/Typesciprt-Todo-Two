@@ -194,9 +194,10 @@
                     border-radius: 25px;
                     width: 50px;
                     border: 1px solid #994517;
-                        color: rgb(235, 235, 222);
+                    color: rgb(235, 235, 222);
                 }
-                button:hover{ 
+
+                button:hover {
                     opacity: 0.75;
                     cursor: pointer;
                 }
@@ -326,6 +327,10 @@
 
             .Completed:hover {
                 fill: #994517;
+            }
+
+            .Delete-Task-Btn:hover {
+                opacity: 1;
             }
         }
     }
